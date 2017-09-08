@@ -34,10 +34,7 @@ export default describe('net/http', () => {
         expect(fetchMock.lastUrl()).to.equal(url)
         expect(fetchMock.lastOptions()).to.deep.equal({
           method: 'get',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
+          headers: {},
           credentials: 'include'
         })
       })
@@ -54,8 +51,6 @@ export default describe('net/http', () => {
         expect(fetchMock.lastOptions()).to.deep.equal({
           method: 'get',
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
             'X-Request-Id': '2333'
           },
           credentials: 'include'
@@ -74,8 +69,6 @@ export default describe('net/http', () => {
         expect(fetchMock.lastOptions()).to.deep.equal({
           method: 'get',
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
             'Authorization': `OAuth2 ${token}`
           }
         })
@@ -140,9 +133,9 @@ export default describe('net/http', () => {
       yield fetchInstance2[httpMethod](path, httpMethod === 'get' || httpMethod === 'delete' ? null : body)
         .send()
         .subscribeOn(Scheduler.async)
-        .do((res: any) => {
-          expect(res.body).to.deep.equal(responseData)
-          expect(res.headers['x-request-id']).to.equal(sampleValue)
+        .do((resp: any) => {
+          expect(resp.body).to.deep.equal(responseData)
+          expect(resp.headers['x-request-id']).to.equal(sampleValue)
         })
     })
   })
