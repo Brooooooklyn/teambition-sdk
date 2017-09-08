@@ -4,6 +4,7 @@ import { schemas } from '../SDK'
 import {
   UserId,
   ProjectId,
+  TapChartId,
   TapDashboardId,
   ExecutorOrCreator,
   TapGenericFilterRequest as FilterRequest,
@@ -11,11 +12,18 @@ import {
 } from 'teambition-types'
 
 import {
-  TapChartType,
-  TapChartSchema
+  TapChart
 } from './TapChart'
 
-export interface TapDashboardSchema<T extends FilterRequest | FilterResponse> {
+export type TapCoordSize = 'small' | 'mid' | 'size'
+
+export interface TapCoordination {
+  _objectId: TapDashboardId | TapChartId,
+  order?: number
+  size?: TapCoordSize
+}
+
+export interface TapDashboard<T extends FilterRequest | FilterResponse> {
   _id: TapDashboardId
 
   _projectId: ProjectId
@@ -23,14 +31,20 @@ export interface TapDashboardSchema<T extends FilterRequest | FilterResponse> {
   _creatorId: UserId
   creator?: ExecutorOrCreator
 
+  _ancestorId: TapDashboardId | null
+  ancestor?: TapDashboard<FilterResponse>
+
   name: string
-  cover: TapChartType
+  coords: TapCoordination
+  coverChart?: TapChart<FilterResponse>
 
   filter: T
-  tapcharts: TapChartSchema<T>[]
+
+  tapcharts: TapChart<FilterResponse>[]
+  tapdashboards: TapDashboard<FilterResponse>[]
 }
 
-const schema: SchemaDef<TapDashboardSchema<FilterRequest | FilterResponse>> = {
+const schema: SchemaDef<TapDashboard<FilterRequest | FilterResponse>> = {
   _id: {
     type: RDBType.STRING,
     primaryKey: true
@@ -53,22 +67,48 @@ const schema: SchemaDef<TapDashboardSchema<FilterRequest | FilterResponse>> = {
     }
   },
 
+  _ancestorId: {
+    type: RDBType.STRING
+  },
+  ancestor: {
+    type: Relationship.oneToOne,
+    virtual: {
+      name: 'TapDashboard',
+      where: (tapDashboardTable: any) => ({
+        _ancestorId: tapDashboardTable._id
+      })
+    }
+  },
+
   name: {
     type: RDBType.STRING
   },
-  cover: {
-    type: RDBType.STRING
+  coords: {
+    type: RDBType.OBJECT
+  },
+  coverChart: {
+    type: RDBType.OBJECT
   },
 
   filter: {
     type: RDBType.OBJECT
   },
+
   tapcharts: {
     type: Relationship.oneToMany,
     virtual: {
       name: 'TapChart',
       where: (tapChartTable: any) => ({
         _id: tapChartTable._tapdashboardId
+      })
+    }
+  },
+  tapdashboards: {
+    type: Relationship.oneToMany,
+    virtual: {
+      name: 'TapDashboard',
+      where: (tapDashboardTable: any) => ({
+        _id: tapDashboardTable._ancestorId
       })
     }
   }
