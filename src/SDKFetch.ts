@@ -13,11 +13,29 @@ export type SDKFetchOptions = {
   token?: string,
   headers?: {
     [header: string]: any,
+    /**
+     * 指定 headers 字段的数据是否以 merge 模式设置到
+     * 最终要生成的 headers 上。若为 true，使用 merge
+     * 模式，将 headers 字段的键值对以类似于 Object.assign
+     * 的方式“添加”到 SDKFetch 对象当前的 headers 上；
+     * 若为 false，使用 headers 字段替代 SDKFetch 对象
+     * 当前的 headers 作为请求使用的 headers。
+     * 默认为 false。
+     */
     merge?: boolean
   },
   [fetchOption: string]: any,
 
+  /**
+   * 当需要使用某些高级功能（如不能通过 Observable 实现的中间件），
+   * 设置为 true，会令 get/post/put/delete 请求返回 SDK Http
+   * 对象，提供额外功能。默认为 false。
+   */
   wrapped?: boolean,
+  /**
+   * 当设置为 true，get/post/put/delete 返回的值中会包含
+   * response headers。默认为 false，仅返回 response body。
+   */
   includeHeaders?: boolean,
 }
 
