@@ -6,7 +6,7 @@ import 'rxjs/add/operator/finally'
 import { Observable } from 'rxjs/Observable'
 import { Http, HttpResponseWithHeaders, getHttpWithResponseHeaders } from './Net/Http'
 import { UserMe } from './schemas/UserMe'
-import { clone, forEach, isEmptyObject } from './utils/index'
+import { forEach, isEmptyObject } from './utils/index'
 
 export type SDKFetchOptions = {
   apiHost?: string,
@@ -190,7 +190,7 @@ export class SDKFetch {
   }
 
   getHeaders() {
-    return clone(this.headers)
+    return { ...this.headers }
   }
 
   setToken(token: string) {
@@ -208,7 +208,7 @@ export class SDKFetch {
   }
 
   getOptions() {
-    return clone(this.options)
+    return { ...this.options }
   }
 
   private setOptionsPerRequest<T>(
@@ -222,7 +222,7 @@ export class SDKFetch {
 
       headers = merge ? { ...this.headers, ...hdrs } : hdrs
     } else {
-      headers = { ...this.headers }
+      headers = this.headers
     }
 
     const token = fetchOptions.token || this.token

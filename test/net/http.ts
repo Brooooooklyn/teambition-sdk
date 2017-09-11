@@ -58,6 +58,23 @@ export default describe('net/http', () => {
       })
   })
 
+  it('should set headers with copy of the input headers', function* () {
+    const headers = {}
+
+    fetchInstance.setHeaders(headers)
+
+    // 如果使用的是传入 headers 对象的引用，下面修改会导致最终 headers 被修改
+    headers['X-Request-Id'] = '2333'
+
+    fetchMock.mock(url, {})
+    yield fetchInstance.get()
+      .send()
+      .subscribeOn(Scheduler.async)
+      .do(() => {
+        expect(fetchMock.lastOptions().headers).to.deep.equal({})
+      })
+  })
+
   it('should set token', function* () {
     const token = 'test_token'
     fetchInstance.setToken(token)
