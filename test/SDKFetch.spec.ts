@@ -159,11 +159,11 @@ describe('SDKFetch', () => {
 
       switch (httpMethod) {
         case 'get':
-          httpObj = sdkFetch[httpMethod](path, null, { _wrapped: true })
+          httpObj = sdkFetch[httpMethod](path, null, { wrapped: true })
           raw = sdkFetch[httpMethod](path, null)
           break
         default:
-          httpObj = sdkFetch[httpMethod](path, body, { _wrapped: true })
+          httpObj = sdkFetch[httpMethod](path, body, { wrapped: true })
           raw = sdkFetch[httpMethod](path, body)
           break
       }
@@ -195,10 +195,10 @@ describe('SDKFetch', () => {
 
       switch (httpMethod) {
       case 'get':
-        withRespHeaders$ = sdkFetch[httpMethod](path, null, { _includeHeaders: true })
+        withRespHeaders$ = sdkFetch[httpMethod](path, null, { includeHeaders: true })
         break
       default:
-        withRespHeaders$ = sdkFetch[httpMethod](path, body, { _includeHeaders: true })
+        withRespHeaders$ = sdkFetch[httpMethod](path, body, { includeHeaders: true })
         break
       }
 
@@ -360,7 +360,7 @@ describe('SDKFetch options', () => {
       fetchMock.mock(new RegExp(''), {})
 
       yield sdkFetch[httpMethod](path, undefined, {
-        headers: { ...newHeader, _merge: true },
+        headers: { ...newHeader, merge: true },
       })
         .subscribeOn(Scheduler.async)
         .do(() => {
