@@ -15,7 +15,7 @@ export type UserFunc = (
   db?: Database,
   tabName?: string,
   pkName?: string
-) => void | ControlFlowGiveUp
+) => void | ControlFlow
 
 export type Interceptor = (
   msg: MessageResult,
@@ -51,26 +51,24 @@ export enum ControlFlow {
   ShortCircuit = 1 << 0,
   IgnoreDefaultDBOps = 1 << 1,
   ShortCircuitAndIgnoreDefaultDBOps = ShortCircuit | IgnoreDefaultDBOps,
-}
 
-export enum ControlFlowGiveUp {
-  KeepFlags = ~ 0,
+  KeepFlags = ~ PassThrough,
   GiveUpShortCircuit = ~ ControlFlow.ShortCircuit,
   GiveUpIgnoreDefaultDBOps = ~ ControlFlow.IgnoreDefaultDBOps,
   GiveUpShortCircuitAndIgnoreDefaultDBOps = GiveUpShortCircuit & GiveUpIgnoreDefaultDBOps
 }
 
 const collectGiveUpFlags = (
-  userFuncResult: void | ControlFlowGiveUp,
+  userFuncResult: void | ControlFlow,
   userFuncName: string
-): ControlFlowGiveUp => {
+): ControlFlow => {
 
   switch (userFuncResult) {
-    case ControlFlowGiveUp.KeepFlags:
-    case ControlFlowGiveUp.GiveUpShortCircuit:
-    case ControlFlowGiveUp.GiveUpIgnoreDefaultDBOps:
-    case ControlFlowGiveUp.GiveUpShortCircuitAndIgnoreDefaultDBOps:
-      return userFuncResult as ControlFlowGiveUp
+    case ControlFlow.KeepFlags:
+    case ControlFlow.GiveUpShortCircuit:
+    case ControlFlow.GiveUpIgnoreDefaultDBOps:
+    case ControlFlow.GiveUpShortCircuitAndIgnoreDefaultDBOps:
+      return userFuncResult as ControlFlow
     default:
       if (userFuncResult != null) {
         SDKLogger.warn(
@@ -78,7 +76,7 @@ const collectGiveUpFlags = (
           'is not a valid ControlFlowGiveUp flag; thus ignored.'
         )
       }
-      return ControlFlowGiveUp.KeepFlags
+      return ControlFlow.KeepFlags
   }
 
 }
