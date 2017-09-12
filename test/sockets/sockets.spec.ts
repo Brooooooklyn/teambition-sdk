@@ -149,7 +149,9 @@ describe('Socket interceptors', () => {
   })
 
   it('should allow interceptor to ignore default DB ops', function* () {
-    client.appendInterceptor((_) => {}, { shortCircuitAndIgnoreDefaultDBOps: true })
+    client.appendInterceptor((_) => {
+      return interceptor.ControlFlow.ShortCircuitAndIgnoreDefaultDBOps
+    })
 
     const server = new SocketMock(client)
 
@@ -171,7 +173,8 @@ describe('Socket interceptors', () => {
 
     client.appendInterceptor((msg) => { // -> 'hello world'
       msg.data.title += ' world'
-    }, { mutateMessage: true, shortCircuit: true })
+      return interceptor.ControlFlow.ShortCircuit
+    }, { mutateMessage: true })
 
     client.appendInterceptor((msg) => { // -> ''
       msg.data.title = ''
@@ -208,11 +211,11 @@ describe('Socket interceptors', () => {
     client.appendInterceptor((msg) => { // -> 'hello'
       if (msg.data.title == null) {
         msg.data.title = 'hello'
-        return
+        return interceptor.ControlFlow.ShortCircuit
       } else {
-        return interceptor.ControlFlowGiveUp.GiveUpShortCircuit
+        return interceptor.ControlFlow.PassThrough
       }
-    }, { mutateMessage: true, shortCircuit: true })
+    }, { mutateMessage: true })
 
     client.appendInterceptor((msg) => { // -> x + ' world'
       msg.data.title += ' world'

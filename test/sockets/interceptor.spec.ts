@@ -4,8 +4,7 @@ import { clone } from '../utils'
 import {
   Sequence,
   createInterceptor,
-  ControlFlow as CF,
-  ControlFlowGiveUp as CFGiveUp
+  ControlFlow as CF
 } from '../../src/sockets/SocketInterceptor'
 
 describe('Socket interceptor creator', () => {
@@ -39,29 +38,30 @@ describe('Socket interceptor creator', () => {
   })
 
   it('no flag', () => {
-    const interceptor000 = createInterceptor(simpleTransFn)
+    const interceptor: any = createInterceptor(simpleTransFn)
 
-    const result = interceptor000(msg)
+    const result = interceptor(msg)
 
     expect(result).to.equal(CF.PassThrough)
     expect(msg).to.deep.equal(msgClone)
   })
 
   it('shortCircuit', () => {
-    const interceptor001 = createInterceptor(simpleTransFn, {
-      shortCircuit: true
+    const interceptor: any = createInterceptor((message) => {
+      simpleTransFn(message)
+      return CF.ShortCircuit
     })
 
-    const result = interceptor001(msg)
+    const result = interceptor(msg)
 
     expect(result).to.equal(CF.ShortCircuit)
     expect(msg).to.deep.equal(msgClone)
   })
 
   it('mutateMessage', () => {
-    const interceptor010 = createInterceptor(simpleTransFn, { mutateMessage: true })
+    const interceptor: any = createInterceptor(simpleTransFn, { mutateMessage: true })
 
-    const result = interceptor010(msg)
+    const result = interceptor(msg)
 
     expect(result).to.equal(CF.PassThrough)
     expect(msg.data.key).to.equal('hello')
@@ -71,11 +71,14 @@ describe('Socket interceptor creator', () => {
   })
 
   it('shortCircuit + mutateMessage', () => {
-    const interceptor011 = createInterceptor(simpleTransFn, {
-      shortCircuit: true, mutateMessage: true
+    const interceptor: any = createInterceptor((message) => {
+      simpleTransFn(message)
+      return CF.ShortCircuit
+    }, {
+      mutateMessage: true
     })
 
-    const result = interceptor011(msg)
+    const result = interceptor(msg)
 
     expect(result).to.equal(CF.ShortCircuit)
     expect(msg.data.key).to.equal('hello')
@@ -85,22 +88,26 @@ describe('Socket interceptor creator', () => {
   })
 
   it('shortCircuit and ignoreDefaultDBOps', () => {
-    const interceptor100 = createInterceptor(simpleTransFn, {
-      shortCircuitAndIgnoreDefaultDBOps: true
+    const interceptor: any = createInterceptor((message) => {
+      simpleTransFn(message)
+      return CF.ShortCircuitAndIgnoreDefaultDBOps
     })
 
-    const result = interceptor100(msg)
+    const result = interceptor(msg)
 
     expect(result).to.equal(CF.ShortCircuitAndIgnoreDefaultDBOps)
     expect(msg).to.deep.equal(msgClone)
   })
 
   it('mutateMessage + shortCircuitAndIgnoreDefaultDBOps', () => {
-    const intercept111 = createInterceptor(simpleTransFn, {
-      mutateMessage: true, shortCircuitAndIgnoreDefaultDBOps: true
+    const intercept: any = createInterceptor((message) => {
+      simpleTransFn(message)
+      return CF.ShortCircuitAndIgnoreDefaultDBOps
+    }, {
+      mutateMessage: true
     })
 
-    const result = intercept111(msg)
+    const result = intercept(msg)
 
     expect(result).to.equal(CF.ShortCircuitAndIgnoreDefaultDBOps)
     expect(msg.data.key).to.equal('hello')
@@ -108,59 +115,11 @@ describe('Socket interceptor creator', () => {
     msg.data.key = 'value'
     expect(msg).to.deep.equal(msgClone)
   })
-
-  it('allow userFn to give up control flow flag: shortCircuit', () => {
-    const intercept = createInterceptor((message) => {
-      simpleTransFn(message)
-      return CFGiveUp.GiveUpShortCircuit
-    }, { shortCircuitAndIgnoreDefaultDBOps: true })
-
-    const result = intercept(msg)
-
-    expect(result).to.equal(CF.IgnoreDefaultDBOps)
-    expect(msg).to.deep.equal(msgClone)
-  })
-
-  it('allow userFn to give up control flow flag: ignoreDefaultDBOps', () => {
-    const intercept = createInterceptor((message) => {
-      simpleTransFn(message)
-      return CFGiveUp.GiveUpIgnoreDefaultDBOps
-    }, { shortCircuitAndIgnoreDefaultDBOps: true })
-
-    const result = intercept(msg)
-
-    expect(result).to.equal(CF.ShortCircuit)
-    expect(msg).to.deep.equal(msgClone)
-  })
-
-  it('allow userFn to give up control flow flags: shortCircuit and ignoreDefaultDBOps', () => {
-    const intercept = createInterceptor((message) => {
-      simpleTransFn(message)
-      return CFGiveUp.GiveUpShortCircuitAndIgnoreDefaultDBOps
-    }, { shortCircuitAndIgnoreDefaultDBOps: true })
-
-    const result = intercept(msg)
-
-    expect(result).to.equal(CF.PassThrough)
-    expect(msg).to.deep.equal(msgClone)
-  })
-
-  it('should ignore a return value (by userFunc) that is not one of the ControlFlowGiveUp flags', () => {
-    const intercept = createInterceptor((message) => {
-      simpleTransFn(message)
-      return CF.ShortCircuit as any
-    })
-
-    const result = intercept(msg)
-
-    expect(result).to.equal(CF.PassThrough)
-    expect(msg).to.deep.equal(msgClone)
-  })
 })
 
 describe('Socket interceptor sequencing', () => {
 
-  let interceptors: Sequence
+  let interceptors: any
   let msg: any
   let msgClone: any
   const transDataKey = (message: any) => {
@@ -213,12 +172,11 @@ describe('Socket interceptor sequencing', () => {
     expect(msg).to.deep.equal(msgClone)
   })
 
-
   it('should shortcircuit when an interceptor returns ShortCircuit flag', () => {
-    interceptors.append(transDataKey, {
-      mutateMessage: true,
-      shortCircuit: true
-    })
+    interceptors.append((message: any) => {
+      transDataKey(message)
+      return CF.ShortCircuit
+    }, { mutateMessage: true })
     interceptors.append(transType, { mutateMessage: true })
 
     const controlFlow = interceptors.apply(msg)
@@ -232,10 +190,10 @@ describe('Socket interceptor sequencing', () => {
   })
 
   it('should shortcircuit when an interceptor returns ShortCircuitAndIgnoreDefaultDBOps flag', () => {
-    interceptors.append(transDataKey, {
-      mutateMessage: true,
-      shortCircuitAndIgnoreDefaultDBOps: true
-    })
+    interceptors.append((message: any) => {
+      transDataKey(message)
+      return CF.ShortCircuitAndIgnoreDefaultDBOps
+    }, { mutateMessage: true })
     interceptors.append(transType, { mutateMessage: true })
 
     const controlFlow = interceptors.apply(msg)

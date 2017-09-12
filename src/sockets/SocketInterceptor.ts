@@ -1,28 +1,27 @@
 import { Database } from 'reactivedb'
 
 import { clone, forEach } from '../utils'
-import { SDKLogger } from '../utils/Logger'
 import { MessageResult } from '../sockets/EventParser'
 
 export type Flags = {
-  mutateMessage?: boolean,
-  shortCircuit?: boolean,
-  shortCircuitAndIgnoreDefaultDBOps?: boolean,
+  mutateMessage?: boolean
 }
 
 export type UserFunc = (
   msg: MessageResult,
-  db?: Database,
-  tabName?: string,
-  pkName?: string
+  db: Database,
+  tabName: string,
+  pkName: string
 ) => void | ControlFlow
 
 export type Interceptor = (
   msg: MessageResult,
-  db?: Database,
-  tabName?: string,
-  pkName?: string
+  db: Database,
+  tabName: string,
+  pkName: string
 ) => ControlFlow
+
+type InterceptorCreator = (userFn: UserFunc) => Interceptor
 
 export class Sequence {
 
@@ -33,16 +32,17 @@ export class Sequence {
   }
 
   apply: Interceptor = (msg, db, tabName, pkName) => {
-    let ret: ControlFlow = ControlFlow.PassThrough
+    let cf: ControlFlow = ControlFlow.PassThrough
 
     forEach(this.interceptors, (interceptor): void | false => {
-      ret = interceptor(msg, db, tabName, pkName)
-      if ((ret & ControlFlow.ShortCircuit) === ControlFlow.ShortCircuit) {
+      cf = interceptor(msg, db, tabName, pkName)
+
+      if ((cf & ControlFlow.ShortCircuit) === ControlFlow.ShortCircuit) {
         return false
       }
     })
 
-    return ret
+    return cf
   }
 }
 
@@ -51,96 +51,23 @@ export enum ControlFlow {
   ShortCircuit = 1 << 0,
   IgnoreDefaultDBOps = 1 << 1,
   ShortCircuitAndIgnoreDefaultDBOps = ShortCircuit | IgnoreDefaultDBOps,
-
-  KeepFlags = ~ PassThrough,
-  GiveUpShortCircuit = ~ ControlFlow.ShortCircuit,
-  GiveUpIgnoreDefaultDBOps = ~ ControlFlow.IgnoreDefaultDBOps,
-  GiveUpShortCircuitAndIgnoreDefaultDBOps = GiveUpShortCircuit & GiveUpIgnoreDefaultDBOps
 }
 
-const collectGiveUpFlags = (
-  userFuncResult: void | ControlFlow,
-  userFuncName: string
-): ControlFlow => {
+export function createInterceptor(userFn: UserFunc, flags: Flags = {}): Interceptor {
+  const create: InterceptorCreator = flags.mutateMessage ? mutateMessage : keepMessage
 
-  switch (userFuncResult) {
-    case ControlFlow.KeepFlags:
-    case ControlFlow.GiveUpShortCircuit:
-    case ControlFlow.GiveUpIgnoreDefaultDBOps:
-    case ControlFlow.GiveUpShortCircuitAndIgnoreDefaultDBOps:
-      return userFuncResult as ControlFlow
-    default:
-      if (userFuncResult != null) {
-        SDKLogger.warn(
-          `Return value: ${userFuncResult}, of interceptor ${userFuncName}`,
-          'is not a valid ControlFlowGiveUp flag; thus ignored.'
-        )
-      }
-      return ControlFlow.KeepFlags
+  return create(userFn)
+}
+
+const mutateMessage: InterceptorCreator = (userFn) =>
+  (msg, db, tabName, pkName) => {
+    const ret = userFn(msg, db, tabName, pkName)
+    return typeof ret !== 'undefined' ? ret : ControlFlow.PassThrough
   }
 
-}
-
-export function createInterceptor(userFn: UserFunc, flags: Flags = {}) {
-  const ignoreDefaultDBOps = 1 << 0
-  const shortCircuit = 1 << 1
-  const mutateMessage = 1 << 2
-
-  const index = (flags.mutateMessage ? mutateMessage : 0)
-    | (flags.shortCircuit ? shortCircuit : 0)
-    | (flags.shortCircuitAndIgnoreDefaultDBOps ? shortCircuit | ignoreDefaultDBOps : 0)
-
-  return interceptorCreatorChoices[index](userFn)
-}
-
-type InterceptorCreator = (userFn: UserFunc) => (msg: MessageResult) => ControlFlow
-
-const placeholder: InterceptorCreator = (_) => (__) => ControlFlow.PassThrough
-
-// 下列有的 index 下的函数不会被使用到，使用 placeholder 填补
-const interceptorCreatorChoices: InterceptorCreator[] = [
-  // f000 - passthrough
-  (userFn) => (msg) => {
+const keepMessage: InterceptorCreator = (userFn) =>
+  (msg, db, tabName, pkName) => {
     const msgClone = clone(msg)
-    const giveUpFlags = collectGiveUpFlags(userFn(msgClone), userFn.name)
-    return ControlFlow.PassThrough & giveUpFlags
-  },
-
-  // f001 - ignore default db ops
-  placeholder,
-
-  // f010 - short circuit
-  (userFn) => (msg) => {
-    const msgClone = clone(msg)
-    const giveUpFlags = collectGiveUpFlags(userFn(msgClone), userFn.name)
-    return ControlFlow.ShortCircuit & giveUpFlags
-  },
-
-  // f011 - short circuit and ignore default db ops
-  (userFn) => (msg) => {
-    const msgClone = clone(msg)
-    const giveUpFlags = collectGiveUpFlags(userFn(msgClone), userFn.name)
-    return ControlFlow.ShortCircuitAndIgnoreDefaultDBOps & giveUpFlags
-  },
-
-  // f100 - mutate message
-  (userFn) => (msg) => {
-    const giveUpFlags = collectGiveUpFlags(userFn(msg), userFn.name)
-    return ControlFlow.PassThrough & giveUpFlags
-  },
-
-  // f101 - mutate message and ignore default db ops
-  placeholder,
-
-  // f110 - mutate message and short circuit
-  (userFn) => (msg) => {
-    const giveUpFlags = collectGiveUpFlags(userFn(msg), userFn.name)
-    return ControlFlow.ShortCircuit & giveUpFlags
-  },
-
-  // f111 - mutate message, short circuit, and ignore default db ops
-  (userFn) => (msg) => {
-    const giveUpFlags = collectGiveUpFlags(userFn(msg), userFn.name)
-    return ControlFlow.ShortCircuitAndIgnoreDefaultDBOps & giveUpFlags
+    const ret = userFn(msgClone, db, tabName, pkName)
+    return typeof ret !== 'undefined' ? ret : ControlFlow.PassThrough
   }
-]
